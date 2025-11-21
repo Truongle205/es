@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>SmartFarm Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style>
+      body {
+        background: #101820;
+        font-family: Arial, sans-serif;
+        color: #fff;
+        padding: 20px;
+      }
+      .card {
+        background: #1d2733;
+        padding: 18px;
+        border-radius: 12px;
+        margin-bottom: 20px;
+      }
+      h2 {
+        margin-top: 0;
+      }
+      .sensor-box {
+        font-size: 26px;
+        margin: 8px 0;
+      }
+      .btn {
+        padding: 10px 18px;
+        font-size: 18px;
+        border-radius: 8px;
+        border: none;
+        cursor: pointer;
+        margin-right: 8px;
+        margin-bottom: 6px;
+      }
+      .on {
+        background: #2ecc71;
+      }
+      .off {
+        background: #e74c3c;
+      }
+      .auto {
+        background: #f1c40f;
+        color: #000;
+      }
+    </style>
+  </head>
+
+  <body>
+    <h1>🌿 SmartFarm Realtime Dashboard</h1>
+
+    <div class="card">
+      <h2>Thiết bị</h2>
+      <p><b>UID (MAC):</b> <span id="uid">C\DCB4D91454A8</span></p>
+    </div>
+
+    <div class="card">
+      <h2>Cảm biến</h2>
+      <div class="sensor-box">🌡 Nhiệt độ: <span id="temp">--</span> °C</div>
+      <div class="sensor-box">💧 Ẩm không khí: <span id="humi">--</span> %</div>
+      <div class="sensor-box">🔆 Ánh sáng: <span id="lux">--</span></div>
+      <div class="sensor-box">🌱 Độ ẩm đất: <span id="soil">--</span></div>
+    </div>
+
+    <div class="card">
+      <h2>Trạng thái hiện tại</h2>
+      <div class="sensor-box">💡 Đèn: <span id="lightState">--</span></div>
+      <div class="sensor-box">
+        🚰 Bơm nước (mode): <span id="pumpMode">--</span>
+      </div>
+      <div class="sensor-box">🔔 Còi: <span id="buzzerState">--</span></div>
+    </div>
+
+    <div class="card">
+      <h2>Điều khiển</h2>
+
+      <p>Đèn:</p>
+      <button class="btn on" onclick="setAct('light',1)">Bật</button>
+      <button class="btn off" onclick="setAct('light',0)">Tắt</button>
+
+      <p>Bơm nước (state machine):</p>
+      <button class="btn off" onclick="setAct('pump','off')">Tắt</button>
+      <button class="btn on" onclick="setAct('pump','manual')">Bật tay</button>
+      <button class="btn auto" onclick="setAct('pump','auto')">
+        Auto theo đất
+      </button>
+
+      <p>Còi báo:</p>
+      <button class="btn on" onclick="setAct('buzzer',1)">Bật</button>
+      <button class="btn off" onclick="setAct('buzzer',0)">Tắt</button>
+    </div>
+
+    <!-- Firebase -->
+    <script type="module">
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+      import {
+        getDatabase,
+        ref,
+        child,
+        onValue,
+        update,
+      } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+      const firebaseConfig = {
+        apiKey: "AIzaSyB3iSrRgGOms2TRwAxZbO1Cv7b6wrhldLA",
+        authDomain: "smartfarms-27323.firebaseapp.com",
+        databaseURL: "https://smartfarms-27323-default-rtdb.firebaseio.com",
+        projectId: "smartfarms-27323",
+        storageBucket: "smartfarms-27323.appspot.com",
+        messagingSenderId: "320755880584",
+        appId: "1:320755880584:web:21a95339088bc6a970c53d",
+      };
+
+      const app = initializeApp(firebaseConfig);
+      const db = getDatabase(app);
+
+      // UID MAC cố định
+      const UID = "DCB4D91454A8";
+      document.getElementById("uid").innerText = UID;
+      const baseRef = ref(db, "devices/" + UID);
+
+      // ====== SENSOR REALTIME ======
+      onValue(child(baseRef, "sensors"), (snap) => {
+        if (!snap.exists()) return;
+        const v = snap.val();
+        document.getElementById("temp").innerText = v.temp ?? "--";
+        document.getElementById("humi").innerText = v.humi ?? "--";
+        document.getElementById("lux").innerText = v.lux ?? "--";
+        document.getElementById("soil").innerText = v.soil ?? "--";
+      });
+
+      // ====== ACTUATOR REALTIME ======
+      onValue(child(baseRef, "actuators"), (snap) => {
+        if (!snap.exists()) return;
+        const a = snap.val();
+        document.getElementById("lightState").innerText = a.light
+          ? "Bật"
+          : "Tắt";
+        document.getElementById("buzzerState").innerText = a.buzzer
+          ? "Bật"
+          : "Tắt";
+        document.getElementById("pumpMode").innerText = a.pump ?? "off";
+      });
+
+      // ====== CONTROL ======
+      function setAct(name, val) {
+        update(child(baseRef, "actuators"), { [name]: val })
+          .then(() => console.log("OK:", name, val))
+          .catch((e) => console.error("ERR:", e));
+      }
+      window.setAct = setAct;
+    </script>
+  </body>
+</html>
