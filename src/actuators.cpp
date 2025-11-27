@@ -1,13 +1,14 @@
+#include "firebase.h"
 #include "actuators.h"
 #include "sensors.h"
 #include <Arduino.h>
-
-// Dùng lại pin trong sensors.h
-// PIN_LIGHT, PIN_PUMP, PIN_BUZZER
+  
 
 bool      s_light = false;
 bool      s_buzz  = false;
 PumpState pumpState = PUMP_OFF;
+int soilThreshold = 1500;
+extern bool s_light;
 
 void actuatorsInit() {
     pinMode(PIN_LIGHT,  OUTPUT);
@@ -33,8 +34,7 @@ void pumpSetMode(PumpState st) {
     pumpState = st;
 }
 
-// Hàm này chính là state machine cho bơm
-void actuatorsStateMachineUpdate() {
+void actuatorsStateMachineUpdate(unsigned long nowSec) {
     switch (pumpState) {
     case PUMP_OFF:
         digitalWrite(PIN_PUMP, LOW);
@@ -45,13 +45,30 @@ void actuatorsStateMachineUpdate() {
         break;
 
     case PUMP_AUTO:
-        // v_soil: 0..4095 (đất càng khô càng nhỏ hay càng lớn tùy mạch)
-        // Ở đây t giả sử "đất khô" khi ADC < 1500, ông tự chỉnh lại ngưỡng.
-        if (v_soil < 1500) {
+        if (v_soil < soilThreshold) {
             digitalWrite(PIN_PUMP, HIGH);
         } else {
             digitalWrite(PIN_PUMP, LOW);
         }
         break;
+    }
+    if (lightOnSec > 0 && lightOffSec > 0 && lightOffSec > lightOnSec) {
+
+        if (nowSec >= (unsigned long)lightOnSec &&
+            nowSec <  (unsigned long)lightOffSec)
+        {
+            if (!s_light) {
+                s_light = true;
+                digitalWrite(PIN_LIGHT, HIGH);
+                Serial.println("[LIGHT] BẬT theo config");
+            }
+        }
+        else {
+            if (s_light) {
+                s_light = false;
+                digitalWrite(PIN_LIGHT, LOW);
+                Serial.println("[LIGHT] TẮT theo config");
+            }
+        }
     }
 }

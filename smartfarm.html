@@ -70,6 +70,34 @@
       </div>
       <div class="sensor-box">🔔 Còi: <span id="buzzerState">--</span></div>
     </div>
+    <div class="card">
+      <h2>Cấu hình Auto</h2>
+      <p>
+        Ngưỡng ẩm đất để bơm bật (so sánh với giá trị <b>soil</b> ESP gửi lên,
+        đơn vị ADC 0–4095):
+      </p>
+      <input
+        id="soilTh"
+        type="number"
+        min="0"
+        max="4095"
+        value="1500"
+        style="padding: 8px; border-radius: 6px; border: none; width: 120px"
+      />
+      <button class="btn on" onclick="saveSoilTh()">Lưu ngưỡng</button>
+    </div>
+    <div class="card">
+      <h2>Cài đặt đèn theo thời gian</h2>
+
+      <p>Giây bật:</p>
+      <input id="onsec" type="number" min="0" max="9999" />
+
+      <p>Giây tắt:</p>
+      <input id="offsec" type="number" min="0" max="9999" />
+
+      <br /><br />
+      <button class="btn on" onclick="saveCfg()">Lưu</button>
+    </div>
 
     <div class="card">
       <h2>Điều khiển</h2>
@@ -119,7 +147,7 @@
       document.getElementById("uid").innerText = UID;
       const baseRef = ref(db, "devices/" + UID);
 
-      // ====== SENSOR REALTIME ======
+      //  SENSOR REALTIME
       onValue(child(baseRef, "sensors"), (snap) => {
         if (!snap.exists()) return;
         const v = snap.val();
@@ -129,7 +157,7 @@
         document.getElementById("soil").innerText = v.soil ?? "--";
       });
 
-      // ====== ACTUATOR REALTIME ======
+      //  ACTUATOR REALTIME
       onValue(child(baseRef, "actuators"), (snap) => {
         if (!snap.exists()) return;
         const a = snap.val();
@@ -142,12 +170,34 @@
         document.getElementById("pumpMode").innerText = a.pump ?? "off";
       });
 
-      // ====== CONTROL ======
+      // CONTROL
       function setAct(name, val) {
         update(child(baseRef, "actuators"), { [name]: val })
           .then(() => console.log("OK:", name, val))
           .catch((e) => console.error("ERR:", e));
       }
+      function saveSoilTh() {
+        const v = parseInt(document.getElementById("soilTh").value);
+        if (isNaN(v)) {
+          alert("Nhập số hợp lệ 0–4095");
+          return;
+        }
+        let val = v;
+        if (val < 0) val = 0;
+        if (val > 4095) val = 4095;
+
+        update(child(baseRef, "config"), { soilThreshold: val })
+          .then(() => {
+            console.log("Saved soilThreshold =", val);
+            alert("Đã lưu ngưỡng ẩm đất: " + val);
+          })
+          .catch((e) => {
+            console.error(e);
+            alert("Lỗi khi lưu ngưỡng!");
+          });
+      }
+
+      window.saveSoilTh = saveSoilTh;
       window.setAct = setAct;
     </script>
   </body>

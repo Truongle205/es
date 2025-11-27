@@ -21,4 +21,4 @@ void setBuzzer(bool on);
 
 void pumpSetMode(PumpState st);
 
-void actuatorsStateMachineUpdate();
+void actuatorsStateMachineUpdate(unsigned long nowSec);

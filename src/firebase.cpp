@@ -10,6 +10,8 @@ const char* FIREBASE_DB_URL  = "https://smartfarms-27323-default-rtdb.firebaseio
 String g_idToken;
 String g_localId;
 String DEVICE_NODE;
+int lightOnSec = 0;
+int lightOffSec = 0;
 
 static bool httpPOST(const String& url, const String& json, String* resp=nullptr) {
     WiFiClientSecure client; client.setInsecure();
@@ -103,8 +105,10 @@ bool firebasePatchAll() {
     }
     a["pump"]   = pumpStr;
     a["buzzer"] = s_buzz ? 1 : 0;
+    JsonObject cfg = doc.createNestedObject("config");
+    cfg["soilThreshold"] = soilThreshold;
 
-    String json;
+    String json; 
     serializeJson(doc, json);
 
     if (!httpPATCH(url, json)) {
@@ -118,7 +122,7 @@ bool firebasePatchAll() {
     return true;
 }
 
-// ===== 3) PULL actuators =====
+//  PULL actuators 
 void firebasePullActuators() {
     if (DEVICE_NODE == "" || g_idToken.length() < 10) return;
 
@@ -130,7 +134,7 @@ void firebasePullActuators() {
     StaticJsonDocument<512> doc;
     if (deserializeJson(doc, resp)) return;
 
-    // Đèn: 0/1 → bool
+    // led 0/1 → bool
     if (!doc["light"].isNull()) {
         bool l = doc["light"].as<int>() != 0;
         setLight(l);
@@ -142,11 +146,31 @@ void firebasePullActuators() {
         setBuzzer(b);
     }
 
-    // Bơm: "off" | "manual" | "auto"
+    // pump "off" | "manual" | "auto"
     if (!doc["pump"].isNull()) {
         String pm = doc["pump"].as<String>();
         if (pm == "manual")      pumpSetMode(PUMP_MANUAL);
         else if (pm == "auto")   pumpSetMode(PUMP_AUTO);
         else                     pumpSetMode(PUMP_OFF);
     }
+}
+void firebasePullConfig() {
+    if (DEVICE_NODE == "" || g_idToken.length() < 10) return;
+
+    String url = String(FIREBASE_DB_URL) + DEVICE_NODE + "/config.json?auth=" + g_idToken;
+
+    String resp;
+    if (!httpGET(url, &resp)) return;
+
+    StaticJsonDocument<256> doc;
+    if (deserializeJson(doc, resp)) return;
+
+    if (!doc["soilThreshold"].isNull()) {
+        int th = doc["soilThreshold"].as<int>();
+        if (th < 0) th = 0;
+        if (th > 4095) th = 4095;
+        soilThreshold = th;
+    }
+    if (doc.containsKey("light_on"))  lightOnSec  = doc["light_on"];
+    if (doc.containsKey("light_off")) lightOffSec = doc["light_off"];
 }

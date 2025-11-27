@@ -6,7 +6,7 @@
 #include "actuators.h"
 #include <WiFiManager.h>
 
-unsigned long tSense=0, tPush=0, tPull=0;
+unsigned long tSense=0, tPush=0, tPull=0, tConfig=0;
 
 void setup() {
   Serial.begin(115200);
@@ -32,14 +32,17 @@ void setup() {
     delay(1500); ESP.restart();
   }
 }
-
+unsigned long lastTick = 0;
 void loop() {
     unsigned long now = millis();
 
     if (now - tSense >= 2000) { tSense = now; readSensors(); }
     if (now - tPush  >= 5000) { tPush  = now; firebasePatchAll(); }
     if (now - tPull  >= 3000) { tPull  = now; firebasePullActuators(); }
-
-   
-    actuatorsStateMachineUpdate();
+    if (now - tConfig>=15000) { tConfig= now; firebasePullConfig(); }
+    if (now - lastTick >= 1000) {
+        lastTick = now;
+        unsigned long nowSec = now / 1000;
+        actuatorsStateMachineUpdate(nowSec);
+    }
 }
