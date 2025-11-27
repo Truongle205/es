@@ -11,7 +11,7 @@
 
 
 #define PIN_LIGHT     48  
-#define PIN_PUMP      39  
+#define PIN_PUMP      6  
 #define PIN_BUZZER    40  
 
 extern float v_temp, v_humi;
