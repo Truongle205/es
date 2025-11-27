@@ -2,6 +2,10 @@
 #include <Arduino.h>
 #include "sensors.h"
 
+enum LightMode {
+    LIGHT_MODE_MANUAL = 0,
+    LIGHT_MODE_AUTO   = 1
+};
 
 enum PumpState {
     PUMP_OFF = 0,
@@ -12,6 +16,7 @@ enum PumpState {
 extern bool      s_light;
 extern bool      s_buzz;
 extern PumpState pumpState;
+extern LightMode lightMode;
 
 void actuatorsInit();
 

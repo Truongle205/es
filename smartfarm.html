@@ -51,7 +51,7 @@
 
     <div class="card">
       <h2>Thiết bị</h2>
-      <p><b>UID (MAC):</b> <span id="uid">C\DCB4D91454A8</span></p>
+      <p><b>UID (MAC):</b> <span id="uid">C\98A316C019D4</span></p>
     </div>
 
     <div class="card">
@@ -105,7 +105,13 @@
       <p>Đèn:</p>
       <button class="btn on" onclick="setAct('light',1)">Bật</button>
       <button class="btn off" onclick="setAct('light',0)">Tắt</button>
+      <p>Chế độ:</p>
+      <button class="btn on" onclick="setLightMode('manual')">MANUAL</button>
+      <button class="btn off" onclick="setLightMode('auto')">AUTO</button>
 
+      <p>Trạng thái (chỉ MANUAL):</p>
+      <button class="btn on" onclick="setAct('light',1)">Bật</button>
+      <button class="btn off" onclick="setAct('light',0)">Tắt</button>
       <p>Bơm nước (state machine):</p>
       <button class="btn off" onclick="setAct('pump','off')">Tắt</button>
       <button class="btn on" onclick="setAct('pump','manual')">Bật tay</button>
@@ -143,7 +149,7 @@
       const db = getDatabase(app);
 
       // UID MAC cố định
-      const UID = "DCB4D91454A8";
+      const UID = "98A316C019D4";
       document.getElementById("uid").innerText = UID;
       const baseRef = ref(db, "devices/" + UID);
 
@@ -195,6 +201,17 @@
             console.error(e);
             alert("Lỗi khi lưu ngưỡng!");
           });
+      }
+      function saveCfg() {
+        let a = parseInt(document.getElementById("onsec").value);
+        let b = parseInt(document.getElementById("offsec").value);
+
+        update(child(baseRef, "config"), {
+          light_on: a,
+          light_off: b,
+        })
+          .then(() => alert("Đã lưu!"))
+          .catch((e) => console.log("ERR", e));
       }
 
       window.saveSoilTh = saveSoilTh;

@@ -9,6 +9,7 @@ bool      s_buzz  = false;
 PumpState pumpState = PUMP_OFF;
 int soilThreshold = 1500;
 extern bool s_light;
+LightMode lightMode = LIGHT_MODE_MANUAL;
 
 void actuatorsInit() {
     pinMode(PIN_LIGHT,  OUTPUT);
@@ -52,23 +53,17 @@ void actuatorsStateMachineUpdate(unsigned long nowSec) {
         }
         break;
     }
-    if (lightOnSec > 0 && lightOffSec > 0 && lightOffSec > lightOnSec) {
-
-        if (nowSec >= (unsigned long)lightOnSec &&
-            nowSec <  (unsigned long)lightOffSec)
-        {
-            if (!s_light) {
-                s_light = true;
-                digitalWrite(PIN_LIGHT, HIGH);
-                Serial.println("[LIGHT] BẬT theo config");
+    if (lightMode == LIGHT_MODE_AUTO) {
+        if (lightOnSec > 0 && lightOffSec > lightOnSec) {
+            bool shouldOn = (nowSec >= (unsigned long)lightOnSec &&
+                             nowSec <  (unsigned long)lightOffSec);
+            if (shouldOn != s_light) {
+                s_light = shouldOn;
+                digitalWrite(PIN_LIGHT, s_light ? HIGH : LOW);
+                Serial.printf("[LIGHT] AUTO -> %s\n", s_light ? "ON" : "OFF");
             }
         }
-        else {
-            if (s_light) {
-                s_light = false;
-                digitalWrite(PIN_LIGHT, LOW);
-                Serial.println("[LIGHT] TẮT theo config");
-            }
-        }
+    } else {     
+        digitalWrite(PIN_LIGHT, s_light ? HIGH : LOW);
     }
 }

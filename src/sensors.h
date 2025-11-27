@@ -1,5 +1,6 @@
 #pragma once
-
+#include "DHT20.h"
+#include <Adafruit_AHTX0.h>
 
 #define PIN_DHT       4
 #define DHTTYPE       DHT11
@@ -9,7 +10,7 @@
 #define PIN_SOIL_ADC  2  
 
 
-#define PIN_LIGHT     38  
+#define PIN_LIGHT     48  
 #define PIN_PUMP      39  
 #define PIN_BUZZER    40  
 

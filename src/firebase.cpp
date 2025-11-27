@@ -96,6 +96,8 @@ bool firebasePatchAll() {
     // Actuators
     JsonObject a = doc.createNestedObject("actuators");
     a["light"] = s_light ? 1 : 0;
+    const char* lightStr = (lightMode == LIGHT_MODE_AUTO) ? "auto" : "manual";
+    a["lightMode"] = lightStr;
 
     const char* pumpStr = "off";
     switch (pumpState) {
@@ -133,6 +135,18 @@ void firebasePullActuators() {
 
     StaticJsonDocument<512> doc;
     if (deserializeJson(doc, resp)) return;
+    if (!doc["lightMode"].isNull()) {
+        const char* m = doc["lightMode"];
+        if      (!strcmp(m, "auto"))   lightMode = LIGHT_MODE_AUTO;
+        else if (!strcmp(m, "manual")) lightMode = LIGHT_MODE_MANUAL;
+    }
+
+    if (lightMode == LIGHT_MODE_MANUAL && !doc["light"].isNull()) {
+        bool l = doc["light"];
+        if (l != s_light) {
+            s_light = l;
+        }
+    }
 
     // led 0/1 → bool
     if (!doc["light"].isNull()) {
