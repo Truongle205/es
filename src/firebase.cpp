@@ -10,8 +10,8 @@ const char* FIREBASE_DB_URL  = "https://smartfarms-27323-default-rtdb.firebaseio
 String g_idToken;
 String g_localId;
 String DEVICE_NODE;
-int lightOnSec = 0;
-int lightOffSec = 0;
+String lightOnTime = "06:00";
+String lightOffTime = "20:00";
 
 static bool httpPOST(const String& url, const String& json, String* resp=nullptr) {
     WiFiClientSecure client; client.setInsecure();
@@ -47,9 +47,8 @@ static bool httpGET(const String& url, String* resp=nullptr) {
     return (code >= 200 && code < 300);
 }
 
-
 bool firebaseAnonSignIn() {
-    String url  = "https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=" 
+    String url  = "https://identitytoolkit.googleapis.com/v1/accounts:signUp?key="
                   + String(FIREBASE_API_KEY);
     String body = "{\"returnSecureToken\":true}";
 
@@ -76,7 +75,6 @@ bool firebaseAnonSignIn() {
     return true;
 }
 
-// PUSH sensors + actuators 
 bool firebasePatchAll() {
     if (DEVICE_NODE == "" || g_idToken.length() < 10) return false;
 
@@ -86,16 +84,15 @@ bool firebasePatchAll() {
 
     doc["ts"] = (uint32_t)(millis() / 1000);
 
-    // Sensors
     JsonObject s = doc.createNestedObject("sensors");
     s["temp"] = isnan(v_temp) ? -1 : v_temp;
     s["humi"] = isnan(v_humi) ? -1 : v_humi;
     s["lux"]  = v_lux;
     s["soil"] = v_soil;
 
-    // Actuators
     JsonObject a = doc.createNestedObject("actuators");
     a["light"] = s_light ? 1 : 0;
+
     const char* lightStr = (lightMode == LIGHT_MODE_AUTO) ? "auto" : "manual";
     a["lightMode"] = lightStr;
 
@@ -107,10 +104,8 @@ bool firebasePatchAll() {
     }
     a["pump"]   = pumpStr;
     a["buzzer"] = s_buzz ? 1 : 0;
-    JsonObject cfg = doc.createNestedObject("config");
-    cfg["soilThreshold"] = soilThreshold;
 
-    String json; 
+    String json;
     serializeJson(doc, json);
 
     if (!httpPATCH(url, json)) {
@@ -120,11 +115,9 @@ bool firebasePatchAll() {
         }
         return false;
     }
-    // Serial.println("[FB] PATCH OK");
     return true;
 }
 
-//  PULL actuators 
 void firebasePullActuators() {
     if (DEVICE_NODE == "" || g_idToken.length() < 10) return;
 
@@ -135,39 +128,39 @@ void firebasePullActuators() {
 
     StaticJsonDocument<512> doc;
     if (deserializeJson(doc, resp)) return;
+
     if (!doc["lightMode"].isNull()) {
         const char* m = doc["lightMode"];
         if      (!strcmp(m, "auto"))   lightMode = LIGHT_MODE_AUTO;
         else if (!strcmp(m, "manual")) lightMode = LIGHT_MODE_MANUAL;
+        Serial.printf("[FB PULL] Light Mode set to: %s\n", m);
+    } else {
+        Serial.println("[FB PULL] lightMode is null/missing. Using local mode.");
     }
 
     if (lightMode == LIGHT_MODE_MANUAL && !doc["light"].isNull()) {
-        bool l = doc["light"];
+        bool l = doc["light"].as<int>() != 0;
         if (l != s_light) {
-            s_light = l;
+            setLight(l);
+            Serial.printf("[FB PULL] MANUAL Light command: %s\n", l ? "ON" : "OFF");
         }
     }
 
-    // led 0/1 → bool
-    if (!doc["light"].isNull()) {
-        bool l = doc["light"].as<int>() != 0;
-        setLight(l);
-    }
-
-    // Buzzer: 0/1 → bool
     if (!doc["buzzer"].isNull()) {
         bool b = doc["buzzer"].as<int>() != 0;
         setBuzzer(b);
+        Serial.printf("[FB PULL] Buzzer: %s\n", b ? "ON" : "OFF");
     }
 
-    // pump "off" | "manual" | "auto"
     if (!doc["pump"].isNull()) {
         String pm = doc["pump"].as<String>();
         if (pm == "manual")      pumpSetMode(PUMP_MANUAL);
         else if (pm == "auto")   pumpSetMode(PUMP_AUTO);
         else                     pumpSetMode(PUMP_OFF);
+        Serial.printf("[FB PULL] Pump Mode: %s\n", pm.c_str());
     }
 }
+
 void firebasePullConfig() {
     if (DEVICE_NODE == "" || g_idToken.length() < 10) return;
 
@@ -184,7 +177,28 @@ void firebasePullConfig() {
         if (th < 0) th = 0;
         if (th > 4095) th = 4095;
         soilThreshold = th;
+        Serial.printf("[FB PULL] soilThreshold: %d\n", soilThreshold);
     }
-    if (doc.containsKey("light_on"))  lightOnSec  = doc["light_on"];
-    if (doc.containsKey("light_off")) lightOffSec = doc["light_off"];
+
+    if (doc.containsKey("lightOnTime")) {
+        lightOnTime = doc["lightOnTime"].as<String>();
+        Serial.printf("[FB PULL] lightOnTime: %s\n", lightOnTime.c_str());
+    }
+    if (doc.containsKey("lightOffTime")) {
+        lightOffTime = doc["lightOffTime"].as<String>();
+        Serial.printf("[FB PULL] lightOffTime: %s\n", lightOffTime.c_str());
+    }
+
+    if (doc.containsKey("deviceId")) {
+        String newDeviceId = doc["deviceId"].as<String>();
+        if (newDeviceId != DEVICE_NODE) {
+            Serial.printf("[CONFIG] New Device ID: %s. Please restart device to use the new ID.\n", newDeviceId.c_str());
+        }
+    }
+    if (doc.containsKey("publishIntervalSec")) {
+        int interval = doc["publishIntervalSec"].as<int>();
+        if (interval >= 10 && interval <= 3600) {
+            Serial.printf("[CONFIG] New Publish Interval: %d seconds.\n", interval);
+        }
+    }
 }

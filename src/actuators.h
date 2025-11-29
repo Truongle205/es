@@ -19,11 +19,8 @@ extern PumpState pumpState;
 extern LightMode lightMode;
 
 void actuatorsInit();
-
 void setLight(bool on);
 void setBuzzer(bool on);
-
-
 void pumpSetMode(PumpState st);
-
 void actuatorsStateMachineUpdate(unsigned long nowSec);
+int getNowMinutes();
